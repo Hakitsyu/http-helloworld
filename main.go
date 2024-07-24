@@ -11,10 +11,18 @@ import (
 )
 
 var (
-	count int32 = 0
+	configuration *Configuration
+	count         int32 = 0
 )
 
+type Configuration struct {
+	Port         string
+	InstanceName string
+}
+
 func main() {
+	loadConfiguration()
+
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +33,7 @@ func main() {
 			InstanceName string `json:"instanceName"`
 		}{
 			Count:        atomic.LoadInt32(&count),
-			InstanceName: os.Getenv("INSTANCE_NAME"),
+			InstanceName: configuration.InstanceName,
 		}); err != nil {
 			log.Println(err)
 		}
@@ -33,5 +41,19 @@ func main() {
 		atomic.AddInt32(&count, 1)
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":"+configuration.Port, router))
+}
+
+func loadConfiguration() {
+	const defaultPort = "80"
+
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = defaultPort
+	}
+
+	configuration = &Configuration{
+		Port:         port,
+		InstanceName: os.Getenv("APP_INSTANCE_NAME"),
+	}
 }
